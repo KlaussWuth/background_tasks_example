@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import 'currency.dart';
 
+/// App initial screen.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -22,39 +23,39 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('European Central Bank Rates'),
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 10),
-          Text(
-            getDateLabel(),
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'All currencies quoted against the euro (base currency)',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 10),
-          FutureBuilder<ExchangeRates>(
-            future: ratesController.getData(),
-            builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
-              if (snapshot.hasError) {
-                return const Center(
-                  child: Text('An error has occurred.'),
-                );
-              }
+      body: FutureBuilder<ExchangeRates>(
+        future: ratesController.getData(),
+        builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text('An error has occurred.'),
+            );
+          }
 
-              if (!snapshot.hasData) {
-                return const Expanded(
-                  child: Center(
-                    child: CircularProgressIndicator.adaptive(),
-                  ),
-                );
-              }
+          if (!snapshot.hasData) {
+            return const Expanded(
+              child: Center(
+                child: CircularProgressIndicator.adaptive(),
+              ),
+            );
+          }
 
-              final latestRates = snapshot.data;
+          final latestRates = snapshot.data as ExchangeRates;
 
-              return Expanded(
+          return Column(
+            children: [
+              const SizedBox(height: 10),
+              Text(
+                formatDate(latestRates.date),
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'All currencies quoted against the euro (base currency)',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 10),
+              Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: ListView.builder(
@@ -99,16 +100,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                 ),
-              );
-            },
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
   /// Returns today's date with the format dd MMMM yyyy.
-  String getDateLabel() {
-    return DateFormat('dd MMMM yyyy').format(DateTime.now());
+  String formatDate(DateTime date) {
+    return DateFormat('dd MMMM yyyy').format(date);
   }
 }
