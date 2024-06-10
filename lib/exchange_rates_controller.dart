@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'exchange_rates.dart';
 
@@ -9,20 +10,23 @@ import 'exchange_rates.dart';
 class ExchangeRatesController {
   /// Fetches the exchange rates.
   Future<ExchangeRates> getData() async {
-    try {
-      // Retrieve from local storage
-      final localData = await fetchLocalData();
-      if (localData != null) return localData;
+    // Retrieve from local storage
+    final localData = await fetchLocalData();
+    if (localData != null) return localData;
 
-      final remoteData = await fetchRemoteData();
+    setPeriodicTask();
+    return refreshData();
+  }
 
-      await saveData(remoteData);
+  /// Updates the exchange rates data on the local storage.
+  ///
+  /// Returns the updated [ExchangeRates].
+  Future<ExchangeRates> refreshData() async {
+    final remoteData = await fetchRemoteData();
 
-      return remoteData;
-    } catch (ex) {
-      print(ex);
-      rethrow;
-    }
+    await saveData(remoteData);
+
+    return remoteData;
   }
 
   /// Saves the provided [ExchangeRates] locally on the device.
@@ -50,15 +54,34 @@ class ExchangeRatesController {
     return ExchangeRates.fromJson(jsonDecode(response.body));
   }
 
-  /// Returns whether the periodic task to fetch the rates is set.
-  bool isPeriodicTaskSet() {
-    // TODO: Add implementation logic.
-    throw UnimplementedError();
+  /// Returns the time (Duration) remaining to be 16:00 CET.
+  Duration timeUntilSixteenHoursCET() {
+    DateTime now = DateTime.now().toUtc();
+    DateTime cetNow =
+        now.add(const Duration(hours: 1)); // Considering CET as UTC+1
+    DateTime cetSixteen =
+        DateTime(cetNow.year, cetNow.month, cetNow.day, 16, 0, 0);
+
+    // If the current time is already past 16:00 CET, calculate the time until 16:00 CET the next day.
+    if (cetNow.isAfter(cetSixteen)) {
+      cetSixteen = cetSixteen.add(const Duration(days: 1));
+    }
+
+    return cetSixteen.difference(cetNow);
   }
 
   /// Sets a new periodic background task to refresh the stored exchange rates.
   void setPeriodicTask() {
-    // TODO: Add implementation logic.
-    throw UnimplementedError();
+    Workmanager().registerPeriodicTask(
+      'fetch_rates',
+      'fetch_rates',
+      frequency: const Duration(days: 1),
+      // We are delaying the start to 16hrs CET to ensure the task get executed
+      // every day at that time. That specific time is used because its the time
+      // at which the API refreshes its data.
+      initialDelay: timeUntilSixteenHoursCET(),
+      existingWorkPolicy: ExistingWorkPolicy.update,
+      constraints: Constraints(networkType: NetworkType.connected),
+    );
   }
 }
